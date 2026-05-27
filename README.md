@@ -47,6 +47,26 @@ python scripts\watch_codex_sessions.py --vault "D:\Documents\Obsidian Vault"
 
 ## 使用
 
+### 打开可见窗口运行
+
+如果希望启动后能看到同步器是否正在运行，推荐使用这个启动脚本：
+
+```powershell
+scripts\start_watcher_window.cmd
+```
+
+它会打开一个标题为 `Codex Obsidian Sync` 的命令行窗口，并在窗口里持续运行 watcher。窗口还开着就表示脚本还在运行；关闭这个窗口后同步停止。
+
+也可以继续传入原脚本参数：
+
+```powershell
+scripts\start_watcher_window.cmd --vault "D:\Documents\Obsidian Vault" --interval 5
+```
+
+双击 `scripts\start_watcher_window.cmd` 也可以启动。
+
+### 直接在当前窗口运行
+
 持续同步最近的 Codex 会话：
 
 ```powershell
