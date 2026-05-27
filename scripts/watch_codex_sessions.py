@@ -8,6 +8,7 @@ import datetime as dt
 import json
 import os
 import re
+import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
@@ -214,6 +215,13 @@ def sync_once(session_file: Path, vault: Path, include_bootstrap: bool) -> Path:
     return destination
 
 
+def log_status(message: str, file: Any = None) -> None:
+    timestamp = dt.datetime.now().isoformat(timespec="seconds")
+    if file is None:
+        file = sys.stdout
+    print(f"[{timestamp}] {message}", file=file, flush=True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Watch Codex session JSONL files and sync them to Obsidian."
@@ -239,13 +247,25 @@ def main() -> int:
     session_file = Path(args.session_file) if args.session_file else latest_session_file(sessions_dir)
 
     last_state: Optional[Tuple[int, int]] = None
+    last_failed_state: Optional[Tuple[int, int]] = None
+    last_failure_at = 0.0
     while True:
         stat = session_file.stat()
         state = (stat.st_size, stat.st_mtime_ns)
-        if state != last_state:
-            destination = sync_once(session_file, vault, args.include_bootstrap)
-            print(destination)
-            last_state = state
+        should_retry_failure = (
+            state == last_failed_state and time.monotonic() - last_failure_at >= 30
+        )
+        if state != last_state and (state != last_failed_state or should_retry_failure):
+            try:
+                destination = sync_once(session_file, vault, args.include_bootstrap)
+            except OSError as exc:
+                log_status(f"Sync failed: {exc}", file=sys.stderr)
+                last_failed_state = state
+                last_failure_at = time.monotonic()
+            else:
+                log_status(f"Synced to {destination}")
+                last_state = state
+                last_failed_state = None
         if args.once:
             break
         time.sleep(args.interval)
@@ -254,6 +274,7 @@ def main() -> int:
             if latest != session_file:
                 session_file = latest
                 last_state = None
+                last_failed_state = None
 
     return 0
 
